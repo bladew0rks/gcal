@@ -2101,6 +2101,19 @@ if CLIENT then
         return self:FindArmTarget(context.vm, context.handsEnt, targetBones)
     end
 
+    local function BlendMatrix(from, to, w, scale, out)
+        local a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12 = from:Unpack()
+        local b1, b2, b3, b4, b5, b6, b7, b8, b9, b10, b11, b12 = to:Unpack()
+
+        out:SetUnpacked(
+            a1 + (b1 - a1) * w, a2 + (b2 - a2) * w, a3 + (b3 - a3) * w, a4 + (b4 - a4) * w,
+            a5 + (b5 - a5) * w, a6 + (b6 - a6) * w, a7 + (b7 - a7) * w, a8 + (b8 - a8) * w,
+            a9 + (b9 - a9) * w, a10 + (b10 - a10) * w, a11 + (b11 - a11) * w, a12 + (b12 - a12) * w,
+            0, 0, 0, 1)
+        out:SetScale(scale)
+        return out
+    end
+
     local function ApplyLegacyLeftArmVisible(track, vm, handsEnt, ply, weapon, flags, renderContext, skipVMSetup)
         if not IsValid(track.model) or not IsValid(vm) then return end
         if IsValid(weapon) and type(weapon.GetStatus) == "function" and weapon:GetStatus() == 5 then return end
@@ -2153,8 +2166,7 @@ if CLIENT then
 
         local boneCount = 0
         local lerpVal = track.lerpVal
-        local lerpCurve = track.lerpCurve or 1
-        local legacyLerp = GCAL.Lerp.Legacy
+        local weight = lerpVal ^ (track.lerpCurve or 1)
 
         for k, boneName in ipairs(rigpick) do
             local sourceBoneName = boneName == "ValveBiped.Bip01_L_Ulna" and "ValveBiped.Bip01_L_Forearm" or boneName
@@ -2167,18 +2179,8 @@ if CLIENT then
             if targetBone ~= nil and targetBone >= 0 and gestureMatrix ~= nil then
                 local targetBoneMatrix = targetEnt:GetBoneMatrix(targetBone)
                 if targetBoneMatrix then
-                    local targetTable = targetBoneMatrix:ToTable()
-                    local gestureTable = gestureMatrix:ToTable()
-
-                    for i, row in pairs(gestureTable) do
-                        for j, value in pairs(row) do
-                            gestureTable[i][j] = legacyLerp(lerpVal, value, targetTable[i][j], lerpCurve)
-                        end
-                    end
-
-                    local m = Matrix(gestureTable)
-                    m:SetScale(flip.targetRight and flipped or scalevec)
-                    targetEnt:SetBoneMatrix(targetBone, m)
+                    targetEnt:SetBoneMatrix(targetBone, BlendMatrix(gestureMatrix, targetBoneMatrix, weight,
+                        flip.targetRight and flipped or scalevec, targetBoneMatrix))
                     boneCount = boneCount + 1
                 end
             end
@@ -2259,19 +2261,7 @@ if CLIENT then
                 local targetMatrix = targetEnt:GetBoneMatrix(targetBone)
                 if not targetMatrix then continue end
 
-                local mTable = modelMatrix:ToTable()
-                local targetTable = targetMatrix:ToTable()
-
-                for i = 1, 4 do
-                    local mi, ti = mTable[i], targetTable[i]
-                    for j = 1, 4 do
-                        mi[j] = mi[j] + (ti[j] - mi[j]) * blendFactor
-                    end
-                end
-
-                local m = Matrix(mTable)
-                m:SetScale(scaleVec)
-                targetEnt:SetBoneMatrix(targetBone, m)
+                targetEnt:SetBoneMatrix(targetBone, BlendMatrix(modelMatrix, targetMatrix, blendFactor, scaleVec, targetMatrix))
                 boneCount = boneCount + 1
             end
         end
@@ -2371,23 +2361,12 @@ if CLIENT then
     end
 
     local function BlendGunMatrix(sourceMatrix, targetMatrix, blendFactor)
-        local mTable = sourceMatrix:ToTable()
-        local targetTable = targetMatrix:ToTable()
-        for i = 1, 4 do
-            local mi, ti = mTable[i], targetTable[i]
-            for j = 1, 4 do
-                mi[j] = mi[j] + (ti[j] - mi[j]) * blendFactor
-            end
-        end
-
-        local m = Matrix(mTable)
-        m:SetScale(scalevec)
-        return m
+        return BlendMatrix(sourceMatrix, targetMatrix, blendFactor, scalevec, Matrix())
     end
 
     local function GunDelta(oldMatrix, newMatrix)
-        local inverse = Matrix(oldMatrix:ToTable())
-        if not inverse:Invert() then return nil end
+        local inverse = oldMatrix:GetInverse()
+        if not inverse then return nil end
         return newMatrix * inverse
     end
 
