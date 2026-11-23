@@ -2101,6 +2101,25 @@ if CLIENT then
         return self:FindArmTarget(context.vm, context.handsEnt, targetBones)
     end
 
+    local boneIds = setmetatable({}, { __mode = "k" })
+
+    local function BoneId(ent, name)
+        local model = ent:GetModel()
+        local cache = boneIds[ent]
+        if not cache or cache.model ~= model then
+            cache = { model = model }
+            boneIds[ent] = cache
+        end
+
+        local id = cache[name]
+        if id == nil then
+            id = ent:LookupBone(name) or false
+            cache[name] = id
+        end
+
+        return id or nil
+    end
+
     local function BlendMatrix(from, to, w, scale, out)
         local a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12 = from:Unpack()
         local b1, b2, b3, b4, b5, b6, b7, b8, b9, b10, b11, b12 = to:Unpack()
@@ -2170,11 +2189,11 @@ if CLIENT then
 
         for k, boneName in ipairs(rigpick) do
             local sourceBoneName = boneName == "ValveBiped.Bip01_L_Ulna" and "ValveBiped.Bip01_L_Forearm" or boneName
-            local sourceBone = track.model:LookupBone(sourceBoneName)
+            local sourceBone = BoneId(track.model, sourceBoneName)
             if sourceBone == nil or sourceBone < 0 then continue end
 
             local gestureMatrix = track.model:GetBoneMatrix(sourceBone)
-            local targetBone = targetEnt:LookupBone(targetRig[k] or boneName)
+            local targetBone = BoneId(targetEnt, targetRig[k] or boneName)
 
             if targetBone ~= nil and targetBone >= 0 and gestureMatrix ~= nil then
                 local targetBoneMatrix = targetEnt:GetBoneMatrix(targetBone)
@@ -2249,13 +2268,13 @@ if CLIENT then
             local sourceBoneName = track.sourceBones and track.sourceBones[k] or boneName
             sourceBoneName = sourceBoneName == "ValveBiped.Bip01_L_Ulna" and "ValveBiped.Bip01_L_Forearm" or
                 sourceBoneName
-            local modelBone = track.model:LookupBone(sourceBoneName)
+            local modelBone = BoneId(track.model, sourceBoneName)
             if not modelBone or modelBone < 0 then continue end
 
             local modelMatrix = track.model:GetBoneMatrix(modelBone)
             if modelMatrix then
                 local targetBoneName = targetBones[k] or boneName
-                local targetBone = targetEnt:LookupBone(targetBoneName)
+                local targetBone = BoneId(targetEnt, targetBoneName)
                 if not targetBone or targetBone < 0 then continue end
 
                 local targetMatrix = targetEnt:GetBoneMatrix(targetBone)
@@ -2424,14 +2443,14 @@ if CLIENT then
             local sourceBoneName = track.sourceBones and track.sourceBones[k] or boneName
             sourceBoneName = sourceBoneName == "ValveBiped.Bip01_L_Ulna" and "ValveBiped.Bip01_L_Forearm" or
                 sourceBoneName
-            local modelBone = track.model:LookupBone(sourceBoneName)
+            local modelBone = BoneId(track.model, sourceBoneName)
             if not modelBone or modelBone < 0 then continue end
 
             local modelMatrix = track.model:GetBoneMatrix(modelBone)
             if not modelMatrix then continue end
 
             local targetBoneName = targetBones[k] or boneName
-            local targetBone = targetEnt:LookupBone(targetBoneName)
+            local targetBone = BoneId(targetEnt, targetBoneName)
             if not targetBone or targetBone < 0 then continue end
 
             local targetMatrix = targetEnt:GetBoneMatrix(targetBone)
@@ -2455,7 +2474,7 @@ if CLIENT then
         local gunMoved = 0
         if mode == "animated" then
             for _, pair in ipairs(GetGunBonePairs(track)) do
-                local sourceBone = track.model:LookupBone(pair[1])
+                local sourceBone = BoneId(track.model, pair[1])
                 local gunBone = vm:LookupBone(pair[2])
                 if sourceBone and sourceBone >= 0 and gunBone and gunBone >= 0 and not solved[vm][gunBone] then
                     local sourceMatrix = track.model:GetBoneMatrix(sourceBone)
