@@ -2727,10 +2727,7 @@ if CLIENT then
 
             local baseMatrices = {}
             for bone = 0, ply:GetBoneCount() - 1 do
-                local matrix = ply:GetBoneMatrix(bone)
-                if matrix then
-                    baseMatrices[bone] = Matrix(matrix:ToTable())
-                end
+                baseMatrices[bone] = ply:GetBoneMatrix(bone)
             end
             renderContext = {
                 thirdpersonBaseMatrices = baseMatrices

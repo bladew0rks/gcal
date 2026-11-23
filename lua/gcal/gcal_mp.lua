@@ -306,8 +306,7 @@ hook.Add("PrePlayerDraw", "GCAL_MP_RenderThirdPerson", function(ply)
 
         baseMatrices = {}
         for bone = 0, ply:GetBoneCount() - 1 do
-            local matrix = ply:GetBoneMatrix(bone)
-            if matrix then baseMatrices[bone] = Matrix(matrix:ToTable()) end
+            baseMatrices[bone] = ply:GetBoneMatrix(bone)
         end
     end
 
