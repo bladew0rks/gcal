@@ -196,8 +196,8 @@ function GCAL.InstallTPIK(deps)
         for bone = 0, model:GetBoneCount() - 1 do
             local src = source:GetBoneMatrix(bone) or model:GetBoneMatrix(bone)
             if src then
-                copies[bone] = Matrix(src:ToTable())
-                local m = copies[bone]
+                local m = src
+                copies[bone] = m
                 local pos = m:GetTranslation()
                 if hasShift then
                     pos = pos + shift
@@ -405,7 +405,7 @@ function GCAL.InstallTPIK(deps)
             end
 
             if isLocked then
-                finalMatrices[tgtBone] = Matrix(tgtMatrix:ToTable())
+                finalMatrices[tgtBone] = tgtMatrix
                 boneCount = boneCount + 1
                 continue
             end
@@ -490,9 +490,8 @@ function GCAL.InstallTPIK(deps)
                     local baseChild = baseMatrices[childBone]
                     local solvedParent = finalMatrices[parentBone]
                     if baseParent and baseChild and solvedParent then
-                        local inv = Matrix(baseParent:ToTable())
-                        inv:Invert()
-                        finalMatrices[childBone] = solvedParent * inv * baseChild
+                        local inv = baseParent:GetInverse()
+                        if inv then finalMatrices[childBone] = solvedParent * inv * baseChild end
                     end
                 end
                 if finalMatrices[childBone] then CarryChildren(childBone) end
